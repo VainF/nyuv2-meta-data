@@ -1,14 +1,13 @@
 #coding:utf-8
 import os
-import torch
-import torch.utils.data as data
-from PIL import Image
-from scipy.io import loadmat
+
 import numpy as np
-import glob
+import torch
+
+from PIL import Image, UnidentifiedImageError
+from scipy.io import loadmat
 from torchvision import transforms
 from torchvision.datasets import VisionDataset
-import random
 
 def colormap(N=256, normalized=False):
     def bitget(byteval, idx):
@@ -79,12 +78,15 @@ class NYUv2(VisionDataset):
         
         if self.target_type=='normal':
             normal_dir = os.path.join(self.root, 'normal', self.split)
-            self.normals = [os.path.join(normal_dir, name) for name in img_names]
+            self.normals = [os.path.join(normal_dir, f"{name[:-3]}npy") for name in img_names]
             self.targets = self.normals
         
     def __getitem__(self, idx):
         image = Image.open(self.images[idx])
-        target = Image.open(self.targets[idx])
+        try:
+            target = Image.open(self.targets[idx])
+        except UnidentifiedImageError:
+            target = np.load(self.targets[idx])
         if self.transforms is not None:
             image, target = self.transforms( image, target )
         return image, target
@@ -135,13 +137,13 @@ if __name__=='__main__':
                             ]),
                             target_transform=transforms.Compose([
                                 transforms.ToTensor(),
-                                transforms.Lambda(lambda normal: normal * 2 - 1)
+                                # transforms.Lambda(lambda normal: normal * 2 - 1)
                             ]),  
                         )
         
     os.makedirs('test', exist_ok=True)
     # Semantic
-    img_id = 0
+    img_id = 5
     
     img, lbl13 = nyu_semantic13[img_id]
     Image.fromarray((img*255).numpy().transpose( 1,2,0 ).astype('uint8')).save('test/image.png')
