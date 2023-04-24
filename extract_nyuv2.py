@@ -192,4 +192,3 @@ if __name__ == '__main__':
         
         if not os.path.exists(os.path.join( DATA_ROOT, 'splits.mat' )):
             shutil.copy2( 'splits.mat', os.path.join( DATA_ROOT, 'splits.mat' ))
-        

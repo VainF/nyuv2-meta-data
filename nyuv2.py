@@ -130,37 +130,36 @@ if __name__=='__main__':
                             ]),  
                         )
 
-    nyu_normal = NYUv2( root='NYUv2', split='train', target_type='normal', 
-                            transform=transforms.Compose([
-                                transforms.Resize(512),
-                                transforms.ToTensor()
-                            ]),
-                            target_transform=transforms.Compose([
-                                transforms.ToTensor(),
-                                # transforms.Lambda(lambda normal: normal * 2 - 1)
-                            ]),  
-                        )
-        
-    os.makedirs('test', exist_ok=True)
+    nyu_normal = NYUv2(
+        root="NYUv2",
+        split="train",
+        target_type="normal", 
+        transform=transforms.Compose(
+            [transforms.Resize(512), transforms.ToTensor()]
+        ),
+        target_transform=transforms.ToTensor(),
+    )
+
+    target_dir = "test" 
+    os.makedirs(target_dir, exist_ok=True)
     # Semantic
-    img_id = 5
+    img_id = 20
     
     img, lbl13 = nyu_semantic13[img_id]
-    Image.fromarray((img*255).numpy().transpose( 1,2,0 ).astype('uint8')).save('test/image.png')
-    Image.fromarray( nyu_semantic13.cmap[ (lbl13.numpy().astype('uint8')+1) ] ).save('test/semantic13.png')
+    Image.fromarray((img*255).numpy().transpose( 1,2,0 ).astype('uint8')).save(f"{target_dir}/image.png")
+    Image.fromarray( nyu_semantic13.cmap[ (lbl13.numpy().astype('uint8')+1) ] ).save(f"{target_dir}/semantic13.png")
 
     img, lbl40 = nyu_semantic40[img_id]
-    Image.fromarray( nyu_semantic40.cmap[ (lbl40.numpy().astype('uint8')+1) ] ).save('test/semantic40.png')
+    Image.fromarray( nyu_semantic40.cmap[ (lbl40.numpy().astype('uint8')+1) ] ).save(f"{target_dir}/semantic40.png")
 
     # Depth
     img, depth = nyu_depth[img_id]
     norm = plt.Normalize()
     depth = plt.cm.jet(norm(depth))
-    plt.imsave('test/depth.png', depth)
+    plt.imsave(f"{target_dir}/depth.png", depth)
 
     # Normal
     img, normal = nyu_normal[img_id]
     normal = (normal+1)/2
-    Image.fromarray((normal*255).numpy().transpose( 1,2,0 ).astype('uint8')).save('test/normal.png')
-
+    Image.fromarray((normal*255).numpy().transpose( 1,2,0 ).astype('uint8')).save(f"{target_dir}/normal.png")
     
