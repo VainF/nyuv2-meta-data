@@ -1,15 +1,21 @@
-import os
-import sys
-import h5py
 import argparse
-import numpy as np
-from skimage import io
-from scipy.io import loadmat
-from tqdm import tqdm
+import gzip
+import os
+import pickle
 import shutil
-import matplotlib
-import matplotlib.pyplot as plt
 import zipfile
+
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+import h5py
+import matplotlib.pyplot as plt
+import numpy as np
+
+from scipy.io import loadmat
+from skimage import io
+from tqdm import tqdm
+
 
 def colormap(N=256, normalized=False):
     def bitget(byteval, idx):
@@ -110,6 +116,39 @@ def extract_depths(depths, splits, DEPTH_DIR, save_colored=False):
                 colored = plt.cm.jet(norm(depth))
                 plt.imsave('colored_depth/%05d.png' % (idx), colored)
 
+
+def extract_normals(normal_zip: str, data_root: str, splits: dict) -> None:
+    # prepare directories
+    normal_test = Path(data_root) / "normal/test"
+    normal_test.mkdir(exist_ok=True, parents=True)
+    normal_train = Path(data_root) / "normal/train"
+    normal_train.mkdir(exist_ok=True, parents=True)
+
+    # extract raw normals in the form of array
+    with TemporaryDirectory() as tmpdir:
+        with zipfile.ZipFile(normal_zip, 'r') as normal_zip:
+            normal_zip.extractall(path=tmpdir)
+        with gzip.open(
+            f"{tmpdir}/surfacenormal_metadata/all_normals.pklz", "rb"
+        ) as f:
+            data = pickle.load(f)
+    
+    # obtain indices of images in each of splits
+    reference_test = splits["testNdxs"].reshape(-1)
+    reference_train = splits["trainNdxs"].reshape(-1)
+
+    # save raw data in proper directory
+    for idx, f_name in enumerate(data["all_filenames"]):
+        if int(f_name) in reference_test:
+            out_path = normal_test / f"{f_name[1:]}.npy"
+        elif int(f_name) in reference_train:
+            out_path = normal_train / f"{f_name[1:]}.npy"
+        else:
+            raise ValueError(f"{f_name} not found in train and test splits!")
+        normal_map = data["all_normals"][idx, :]
+        np.save(out_path, normal_map)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='RYU DATA Extraction')
     parser.add_argument('--mat', type=str, required=True,
@@ -119,7 +158,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_colored', action='store_true', default=False,
                         help="save colored labels and depth maps for visualization")
     parser.add_argument('--normal_zip', type=str, default=None,
-                        help='path to nyu_normals_gt.zip. https: // inf.ethz.ch/personal/ladickyl/nyu_normals_gt.zip')
+                        help='path to nyuv2_surfacenormal_metadata.zip. https://dl.fbaipublicfiles.com/fair_self_supervision_benchmark/nyuv2_surfacenormal_metadata.zip')
 
     args = parser.parse_args()
 
@@ -149,11 +188,7 @@ if __name__ == '__main__':
         extract_images(np.array(images), splits, IMAGE_DIR)
 
         if args.normal_zip is not None and os.path.exists(args.normal_zip):
-            NORMAL_DIR = os.path.join(DATA_ROOT, 'normal')
-            os.makedirs(NORMAL_DIR, exist_ok=True)
-            with zipfile.ZipFile(args.normal_zip, 'r') as normal_zip:
-                normal_zip.extractall(path=NORMAL_DIR)
+            extract_normals(args.normal_zip, DATA_ROOT, splits)
         
         if not os.path.exists(os.path.join( DATA_ROOT, 'splits.mat' )):
             shutil.copy2( 'splits.mat', os.path.join( DATA_ROOT, 'splits.mat' ))
-        

@@ -4,3 +4,4 @@ test_labels_13
 train_labels_13
 *.zip
 *.mat
+**/__pycache__
